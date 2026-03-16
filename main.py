@@ -268,6 +268,47 @@ class FXCLI:
 
         return layout
 
+    def display_data(self, data: dict):
+        """Display all data in a simple format."""
+        self.console.clear()
+
+        # Display header
+        self.console.print(f"\n[bold cyan]FX CLI - {self.base_currency}/{self.target_currency} Tracker[/bold cyan]")
+        if self.last_refresh:
+            self.console.print(f"[dim]Last updated: {self.last_refresh.strftime('%Y-%m-%d %H:%M:%S')}[/dim]")
+        self.console.print()
+
+        # Display exchange rate
+        rate_data = data.get('rate')
+        if rate_data and rate_data.get('rate'):
+            self.console.print("[bold]Exchange Rate:[/bold]")
+            rate_panel = self.create_rate_panel(rate_data)
+            self.console.print(rate_panel)
+        else:
+            self.console.print("[red]No exchange rate data available[/red]")
+
+        self.console.print()
+
+        # Display news
+        news_data = data.get('news', [])
+        if news_data:
+            self.console.print("[bold]Latest News:[/bold]")
+            news_table = self.create_news_table(news_data)
+            self.console.print(news_table)
+        else:
+            self.console.print("[yellow]No news articles available[/yellow]")
+
+        self.console.print()
+
+        # Display economic calendar
+        calendar_data = data.get('calendar', [])
+        if calendar_data:
+            self.console.print("[bold]Economic Calendar (High Impact):[/bold]")
+            calendar_table = self.create_calendar_table(calendar_data)
+            self.console.print(calendar_table)
+        else:
+            self.console.print("[yellow]No economic calendar events available[/yellow]")
+
     def run(self):
         """Main application loop."""
         # Get currency pair
@@ -285,49 +326,24 @@ class FXCLI:
         data = self.fetch_data()
 
         # Display initial data
-        self.console.clear()
-        layout = self.create_layout(data)
+        self.display_data(data)
 
-        with Live(layout, refresh_per_second=4, screen=True) as live:
-            while self.is_running:
-                # Check for user input (non-blocking with timeout)
-                try:
-                    # We'll use a simple approach with input in a separate thread
-                    # For now, just refresh every 30 seconds or on 'R' key
-                    # We need to handle keyboard input
-                    # Using a simple approach: wait for keypress with timeout
-                    import select
-                    import termios
-                    import tty
+        while self.is_running:
+            # Simple input handling
+            self.console.print("\n[dim]Press 'R' to refresh, 'Q' to quit[/dim]")
+            user_input = input("> ").strip().upper()
 
-                    # Set terminal to non-blocking mode
-                    old_settings = termios.tcgetattr(sys.stdin)
-                    try:
-                        tty.setcbreak(sys.stdin.fileno())
-
-                        # Wait for keypress for 5 seconds
-                        if select.select([sys.stdin], [], [], 5)[0]:
-                            key = sys.stdin.read(1).upper()
-                            if key == 'R':
-                                # Refresh data
-                                self.console.print("[dim]Refreshing data...[/dim]")
-                                data = self.fetch_data()
-                                layout = self.create_layout(data)
-                                live.update(layout)
-                            elif key == 'Q':
-                                self.is_running = False
-                                break
-
-                    finally:
-                        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-
-                except (ImportError, Exception):
-                    # Fallback: simple sleep and auto-refresh
-                    time.sleep(30)
-                    self.console.print("[dim]Auto-refreshing data...[/dim]")
-                    data = self.fetch_data()
-                    layout = self.create_layout(data)
-                    live.update(layout)
+            if user_input == 'Q':
+                self.is_running = False
+                break
+            elif user_input == 'R' or user_input == '':
+                # Refresh data (empty input also refreshes)
+                self.console.print("[dim]Refreshing data...[/dim]")
+                data = self.fetch_data()
+                self.console.clear()
+                self.display_data(data)
+            else:
+                self.console.print("[yellow]Unknown command. Press 'R' to refresh or 'Q' to quit[/yellow]")
 
         self.console.print("\n[green]FX CLI terminated. Goodbye![/green]")
 
